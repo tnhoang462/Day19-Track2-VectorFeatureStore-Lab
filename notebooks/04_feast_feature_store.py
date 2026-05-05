@@ -150,6 +150,10 @@ print({k: v[0] for k, v in features.items()})
 # ## 5. TODO — Batch latency benchmark (100 lookups, P99)
 
 # %%
+# Warm-up: 5 calls để load SQLite page cache (loại trừ cold-start outlier).
+for i in range(5):
+    fs.get_online_features(features=REQUEST_FEATURES, entity_rows=[{"user_id": f"u_{i:03d}"}]).to_dict()
+
 latencies: list[float] = []
 for i in range(100):
     user_id = f"u_{i:03d}"
@@ -183,9 +187,11 @@ else:
 
 # %%
 import pandas as pd
+# Entity event_timestamp must be >= source event_timestamp for PIT join to find a match.
+# Source: u_00i has event_timestamp = NOW - i*1h, so query at NOW guarantees all 3 match.
 entity_df = pd.DataFrame({
     "user_id": ["u_001", "u_002", "u_003"],
-    "event_timestamp": [NOW - timedelta(hours=2), NOW - timedelta(hours=1), NOW],
+    "event_timestamp": [NOW, NOW, NOW],
 })
 
 historical = fs.get_historical_features(
